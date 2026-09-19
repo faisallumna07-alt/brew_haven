@@ -143,6 +143,31 @@
             border-left: 1px solid var(--line-color);
             padding-left: 20px;
         }
+        
+        .nav-toggle {
+            display: none;                 /* hidden on desktop */
+            background: none;
+            border: none;
+            color: var(--text-main);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .nav-action-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font: inherit;
+            letter-spacing: 2px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .nav-action-btn:hover,
+        .nav-action-btn:focus-visible {
+            color: var(--accent-color);
+        }
 
         /* Layout Container */
         .container {
@@ -571,8 +596,32 @@
             }
             .description { margin: 0 auto 30px auto; }
             .content-right { margin-top: 60px; }
-            nav { display: none; /* Can be replaced with a hamburger menu later */ }
-            header { justify-content: center; }
+            
+            .nav-toggle { display: block; order: -1; }
+
+            nav {
+                display: none;             /* collapsed by default … */
+                position: absolute;
+                top: 90px;                 /* directly under the fixed header */
+                left: 0;
+                width: 100%;
+                flex-direction: column;
+                gap: 18px;
+                padding: 25px 5%;
+                background: rgba(62, 38, 27, 0.97);
+                border-bottom: 1px solid var(--line-color);
+            }
+
+            nav.open { display: flex; }    /* … but reachable via the toggle */
+            nav span.divider { display: none; }
+
+            .nav-actions {
+                margin-left: 0;
+                border-left: none;
+                padding-left: 0;
+            }
+
+            header { justify-content: space-between; }
         }
     </style>
 </head>
@@ -590,17 +639,24 @@
                 <p>COFFEE HOUSE &middot; EST. 2025</p>
             </div>
         </a>
-        <nav>
+        
+        <button class="nav-toggle" aria-label="Open navigation menu"
+                aria-expanded="false" aria-controls="primaryNav"
+                onclick="toggleNav()">&#9776;</button>
+
+        <nav id="primaryNav">
             <a href="#menu">MENU</a> <span class="divider">&middot;</span>
             <a href="#story">OUR STORY</a> <span class="divider">&middot;</span>
-            <a href="#stores">STORES</a> <span class="divider">&middot;</span>
-            <a href="#stores">REWARDS</a>
-            
-            <div class="nav-actions">
-                <a onclick="openModal('loginModal')">SIGN IN</a>
-                <a onclick="openModal('cartModal')">CART (<span id="cartCount">0</span>)</a>
-            </div>
+            <a href="#stores">STORES</a>
         </nav>
+
+        <!-- Moved OUT of <nav> so it is never hidden by the nav breakpoint -->
+        <div class="nav-actions">
+            <button type="button" class="nav-action-btn" onclick="openModal('loginModal')">SIGN IN</button>
+            <button type="button" class="nav-action-btn" onclick="openModal('cartModal')">
+                CART (<span id="cartCount">0</span>)
+            </button>
+        </div>
     </header>
 
     <section id="home">
@@ -663,29 +719,36 @@
         <div class="container">
             <h2 class="section-title">Seasonal <span>Menu</span></h2>
             <div class="menu-grid">
+                <!-- Prices are now declared ONCE, in centavos, on the button itself. -->
                 <div class="menu-item">
                     <div>
                         <h3>Pumpkin Spice Latte</h3>
                         <p>Our signature espresso blended with autumn spices, steamed milk, and topped with whipped cream.</p>
-                        <span class="menu-price">$5.50</span>
+                        <span class="menu-price" data-price-label></span>
                     </div>
-                    <button class="btn btn-outline" onclick="addToCart('Pumpkin Spice Latte', 5.50)">Add to Cart</button>
+                    <button class="btn btn-outline add-to-cart"
+                            data-name="Pumpkin Spice Latte"
+                            data-price="16500">Add to Cart</button>
                 </div>
                 <div class="menu-item">
                     <div>
                         <h3>Maple Pecan Cold Brew</h3>
                         <p>Slow-steeped cold brew kissed with sweet maple syrup and topped with crushed toasted pecans.</p>
-                        <span class="menu-price">$4.75</span>
+                        <span class="menu-price" data-price-label></span>
                     </div>
-                    <button class="btn btn-outline" onclick="addToCart('Maple Pecan Cold Brew', 4.75)">Add to Cart</button>
+                    <button class="btn btn-outline add-to-cart"
+                            data-name="Maple Pecan Cold Brew"
+                            data-price="14500">Add to Cart</button>
                 </div>
                 <div class="menu-item">
                     <div>
                         <h3>Cinnamon Chai Steam</h3>
                         <p>A comforting blend of black tea, cinnamon, clove, and steamed oat milk for chilly afternoons.</p>
-                        <span class="menu-price">$4.50</span>
+                        <span class="menu-price" data-price-label></span>
                     </div>
-                    <button class="btn btn-outline" onclick="addToCart('Cinnamon Chai Steam', 4.50)">Add to Cart</button>
+                    <button class="btn btn-outline add-to-cart"
+                            data-name="Cinnamon Chai Steam"
+                            data-price="13500">Add to Cart</button>
                 </div>
             </div>
         </div>
@@ -767,7 +830,7 @@
             
             <div class="cart-total">
                 <span>Total:</span>
-                <span id="cartTotalValue">$0.00</span>
+                <span id="cartTotalValue">₱0.00</span>
             </div>
             
             <button class="btn" style="width: 100%;" onclick="checkout()">Proceed to Checkout</button>
@@ -795,23 +858,57 @@
         // Login Logic
         function handleLogin(e) {
             e.preventDefault();
-            alert('Sign in successful! Welcome to Brew Haven.');
+            // Accounts are not yet implemented. Do not claim a successful sign-in.
+            alert('Accounts are coming soon — online sign-in is not available yet. '
+                + 'Please order as a guest.');
             closeModal('loginModal');
             // Clear form
             e.target.reset();
         }
 
+        // Mobile Nav Logic
+        function toggleNav() {
+            const nav = document.getElementById('primaryNav');
+            const toggle = document.querySelector('.nav-toggle');
+            const isOpen = nav.classList.toggle('open');    
+            toggle.setAttribute('aria-expanded', isOpen);
+        }
+
+        // Close the mobile menu after a section link is tapped.
+        document.querySelectorAll('#primaryNav a').forEach(link => {
+            link.addEventListener('click', () => {
+                document.getElementById('primaryNav').classList.remove('open');
+                document.querySelector('.nav-toggle').setAttribute('aria-expanded', 'false');
+            });
+        });
+
         // Cart Logic
         let cart = [];
+        
+        // --- Money helpers: store centavos as integers, format once. ---
+        const peso = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
+        function formatPrice(centavos) {
+            return peso.format(centavos / 100);
+        }
 
-        function addToCart(itemName, price) {
+        // Render every visible price label from the same data-price the cart uses.
+        document.querySelectorAll('.add-to-cart').forEach(btn => {
+            const label = btn.closest('.menu-item').querySelector('[data-price-label]');
+            if (label) label.textContent = formatPrice(Number(btn.dataset.price));
+
+            btn.addEventListener('click', () => {
+                addToCart(btn.dataset.name, Number(btn.dataset.price));
+            });
+        });
+
+        function addToCart(itemName, priceInCentavos) {
             // Check if item already exists in cart
             const existingItem = cart.find(item => item.name === itemName);
             
             if (existingItem) {
                 existingItem.quantity += 1;
             } else {
-                cart.push({ name: itemName, price: price, quantity: 1 });
+                cart.push({ name: itemName, price: priceInCentavos, quantity: 1 });
             }
             
             updateCartUI();
@@ -839,7 +936,7 @@
             
             if (cart.length === 0) {
                 cartItemsContainer.innerHTML = '<div class="empty-cart-msg">Your cart is currently empty.</div>';
-                cartTotalValue.innerText = '$0.00';
+                cartTotalValue.innerText = formatPrice(0);
                 return;
             }
             
@@ -854,10 +951,10 @@
                 itemEl.innerHTML = `
                     <div class="cart-item-info">
                         <h4>${item.name}</h4>
-                        <p>$${item.price.toFixed(2)} x ${item.quantity}</p>
+                        <p>${formatPrice(item.price)} x ${item.quantity}</p>
                     </div>
                     <div>
-                        <div style="font-weight: bold; margin-bottom: 5px;">$${itemTotal.toFixed(2)}</div>
+                        <div style="font-weight: bold; margin-bottom: 5px;">${formatPrice(itemTotal)}</div>
                         <span class="cart-item-remove" onclick="removeFromCart(${index})">Remove</span>
                     </div>
                 `;
@@ -865,7 +962,7 @@
             });
             
             // Update total price
-            cartTotalValue.innerText = `$${totalPrice.toFixed(2)}`;
+            cartTotalValue.innerText = formatPrice(totalPrice);
         }
 
         function checkout() {
